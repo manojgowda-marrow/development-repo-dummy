@@ -11,22 +11,27 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     steps:
+      # Hand our PAT to checkout directly -- this is GitHub's documented way
+      # to push changes back with a PAT, and it wires up auth the same way
+      # actions/checkout wires up the default GITHUB_TOKEN
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # checkout leaves the default GITHUB_TOKEN as an auth header in
-          # .git/config, which silently overrides our PAT below -- disable it
-          persist-credentials: false
+          token: ${{ secrets.DEV_REPO_PAT }}
 
-      # Point the remote at our PAT now, before anything else touches git,
-      # so fetch/tag/push all use it consistently
-      - name: Configure git auth
-        env:
-          GH_TOKEN: ${{ secrets.DEV_REPO_PAT }}
+      - name: Configure git author
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+
+      # Prove the token this job actually has works, before blaming git
+      - name: Sanity check token permissions
+        env:
+          GH_TOKEN: ${{ secrets.DEV_REPO_PAT }}
+        run: |
+          curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}" \
+            | grep -A6 '"permissions"' || echo "no permissions field -- token likely invalid"
 
       # Read the last v* tag and bump the patch number
       - name: Compute next tag
