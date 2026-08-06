@@ -3,15 +3,35 @@ name: Proxy build
 # Mirrors rounds_ikigai_proxy's real proxy.yaml: same name, same trigger.
 # No real ECR access here -- just needs to complete successfully with a
 # real tag ref so aut0-deploy.yaml's workflow_run listener fires correctly.
+#
+# Fires automatically when a Release is created by hand in the GitHub UI
+# (that creates the underlying tag too). workflow_dispatch is a manual
+# fallback for re-testing without cutting a fresh release each time.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch: {}
 
 jobs:
   Build-And-Deploy:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # On a real tag push, GITHUB_REF_NAME is the tag. On a manual run,
+      # there's no tag ref, so fall back to the latest one that exists.
+      - name: Determine release version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "version=$(git tag --list 'v*' --sort=-v:refname | head -n1)" >> $GITHUB_OUTPUT
+          fi
+
       - name: Fake build and push image
         run: |
-          echo "Pretending to build+push 961328178101.dkr.ecr.ap-south-1.amazonaws.com/rounds-ikigai-proxy:${GITHUB_REF_NAME}"
+          echo "Pretending to build+push 961328178101.dkr.ecr.ap-south-1.amazonaws.com/rounds-ikigai-proxy:${{ steps.version.outputs.version }}"
