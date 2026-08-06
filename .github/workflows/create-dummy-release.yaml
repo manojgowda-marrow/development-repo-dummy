@@ -1,0 +1,39 @@
+name: Create dummy release
+
+# Manual button: bumps a patch version and pushes a new v* tag.
+# Must use a PAT, not GITHUB_TOKEN -- GitHub won't let a token-authored push
+# retrigger another workflow in the same repo (this is why the real
+# rounds_ikigai_proxy repo's create-release.yml uses DEVOPS_PAT too).
+on:
+  workflow_dispatch: {}
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Read the last v* tag and bump the patch number
+      - name: Compute next tag
+        id: next
+        run: |
+          git fetch --tags
+          LAST=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+          LAST=${LAST:-v0.0.0}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${LAST#v}"
+          echo "tag=v${MAJOR}.${MINOR}.$((PATCH + 1))" >> $GITHUB_OUTPUT
+          echo "Previous: $LAST"
+
+      # Push the tag -- this fires proxy.yaml's push:tags trigger
+      - name: Push tag
+        env:
+          GH_TOKEN: ${{ secrets.DEV_REPO_PAT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          git tag "${{ steps.next.outputs.tag }}"
+          git push origin "${{ steps.next.outputs.tag }}"
+          echo "Pushed ${{ steps.next.outputs.tag }}"

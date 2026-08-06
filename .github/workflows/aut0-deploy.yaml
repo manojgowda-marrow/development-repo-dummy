@@ -20,9 +20,9 @@ jobs:
       - name: Check out deployment repo
         uses: actions/checkout@v4
         with:
-          repository: Daily-Rounds/rounds_deployment
+          repository: manojgowda-marrow/ruleset-test
           token: ${{ secrets.DEPLOYMENT_REPO_TOKEN }}
-          ref: master
+          ref: main
 
       # Swap the rounds-proxy tag only; the ikigai-web init container is left alone
       - name: Bump image tag
@@ -44,7 +44,7 @@ jobs:
           git checkout -B $BRANCH
           git commit -am "ikigai-web $OLD_TAG -> $NEW_TAG"
           git push -f origin $BRANCH
-          gh pr create --base master --head $BRANCH \
+          gh pr create --base main --head $BRANCH \
             --title "ikigai-web $OLD_TAG -> $NEW_TAG" \
             --body "Automated bump of rounds-ikigai-proxy in \`$DEPLOY_FILE\`." \
             || echo "PR already open for $BRANCH"

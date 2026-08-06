@@ -1,0 +1,17 @@
+name: Proxy build
+
+# Mirrors rounds_ikigai_proxy's real proxy.yaml: same name, same trigger.
+# No real ECR access here -- just needs to complete successfully with a
+# real tag ref so aut0-deploy.yaml's workflow_run listener fires correctly.
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  Build-And-Deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fake build and push image
+        run: |
+          echo "Pretending to build+push 961328178101.dkr.ecr.ap-south-1.amazonaws.com/rounds-ikigai-proxy:${GITHUB_REF_NAME}"
