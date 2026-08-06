@@ -18,6 +18,16 @@ jobs:
           # .git/config, which silently overrides our PAT below -- disable it
           persist-credentials: false
 
+      # Point the remote at our PAT now, before anything else touches git,
+      # so fetch/tag/push all use it consistently
+      - name: Configure git auth
+        env:
+          GH_TOKEN: ${{ secrets.DEV_REPO_PAT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+
       # Read the last v* tag and bump the patch number
       - name: Compute next tag
         id: next
@@ -31,12 +41,7 @@ jobs:
 
       # Push the tag -- this fires proxy.yaml's push:tags trigger
       - name: Push tag
-        env:
-          GH_TOKEN: ${{ secrets.DEV_REPO_PAT }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           git tag "${{ steps.next.outputs.tag }}"
           git push origin "${{ steps.next.outputs.tag }}"
           echo "Pushed ${{ steps.next.outputs.tag }}"
