@@ -16,7 +16,9 @@ permissions:
 
 jobs:
   Raise-Deployment-PR:
-    if: ${{ contains(github.event.issue.labels.*.name, 'deployment-request') }}
+    # Issue-form "labels:" only applies a label that already exists in the repo,
+    # so gating on labels is fragile. Gate on the template's unique heading instead.
+    if: ${{ contains(github.event.issue.body, '### Release tag') }}
     runs-on: ubuntu-latest
     env:
       IMAGE: 961328178101.dkr.ecr.ap-south-1.amazonaws.com/rounds-api
