@@ -1,0 +1,15 @@
+{
+  "_comment": "Test fixture mirroring rounds_api's .github/deploy-targets.json. Maps a fake service name -> path (relative to the ruleset-test deployment repo root).",
+  "api_tier": {
+    "demo-api-one": "demo-api-one/deploy.yaml",
+    "demo-api-two": "demo-api-two/deploy.yaml",
+    "demo-api-three": "demo-api-three/deploy.yaml"
+  },
+  "celery": {
+    "demo-celery-one": "demo-celery-one/deploy.yaml",
+    "demo-celery-two": "demo-celery-two/deploy.yaml",
+    "demo-celery-three": "demo-celery-three/deploy.yaml",
+    "demo-celery-four": "demo-celery-four/deploy.yaml"
+  },
+  "other": {}
+}
