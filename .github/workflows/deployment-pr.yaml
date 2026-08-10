@@ -116,7 +116,7 @@ jobs:
             echo "no_changes=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          BRANCH="deploy-test/$(TZ=Asia/Kolkata date +%-d-%-m-%Y)-$NEW_TAG"
+          BRANCH="feat/$(TZ=Asia/Kolkata date +%-d-%-m-%Y)-api-celery"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -B "$BRANCH"
