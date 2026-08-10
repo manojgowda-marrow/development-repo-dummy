@@ -1,58 +1,64 @@
 name: Deployment PR
 
-# Test copy of rounds_api's workflow of the same name, pointed at the
-# ruleset-test dummy deployment repo instead of rounds_deployment. Runs when
-# a deployment release (drafted by "Draft deployment release") is published.
-# Reads which services were checked in the release body, then opens ONE PR
-# in ruleset-test bumping only those services' deploy files.
+# Test copy of the rounds_api deployment-PR flow, pointed at the ruleset-test
+# dummy deployment repo instead of rounds_deployment. Runs when a "Deployment
+# request" issue (.github/ISSUE_TEMPLATE/deployment-request.yml) is opened.
+# The dev picks a tag and ticks real checkboxes for the services to bump -
+# no markdown editing. Opens ONE PR in ruleset-test with only those services
+# changed, then comments back on the issue and closes it.
 on:
-  release:
-    types: [published]
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   Raise-Deployment-PR:
+    if: ${{ contains(github.event.issue.labels.*.name, 'deployment-request') }}
     runs-on: ubuntu-latest
     env:
-      NEW_TAG: ${{ github.event.release.tag_name }}
       IMAGE: 961328178101.dkr.ecr.ap-south-1.amazonaws.com/rounds-api
       DEPLOYMENT_REPO: manojgowda-marrow/ruleset-test
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
     steps:
       - name: Check out development-repo-dummy (for deploy-targets.json)
         uses: actions/checkout@v4
 
-      - name: Extract checked services from release body
+      - name: Extract tag and checked services from the issue body
         id: targets
         run: |
-          jq -r '.release.body' "$GITHUB_EVENT_PATH" > release_body.md
-          grep -oE '^- \[[xX]\] [A-Za-z0-9._-]+' release_body.md | sed -E 's/^- \[[xX]\] //' > checked.txt || true
+          jq -r '.issue.body' "$GITHUB_EVENT_PATH" > issue_body.md
+
+          NEW_TAG=$(awk '/^### Release tag$/{f=1; next} f && NF{print; exit}' issue_body.md)
+          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+
+          grep -oE '^- \[[xX]\] [A-Za-z0-9._-]+' issue_body.md | sed -E 's/^- \[[xX]\] //' > checked.txt || true
 
           jq -r '.api_tier + .celery + .other' .github/deploy-targets.json > flat-targets.json
 
           > selected_paths.txt
-          > unknown.txt
           while IFS= read -r name; do
             [ -z "$name" ] && continue
             path=$(jq -r --arg n "$name" '.[$n] // empty' flat-targets.json)
-            if [ -z "$path" ]; then
-              echo "$name" >> unknown.txt
-            else
-              echo "$name:$path" >> selected_paths.txt
-            fi
+            [ -n "$path" ] && echo "$name:$path" >> selected_paths.txt
           done < checked.txt
 
           {
             echo "count=$(wc -l < selected_paths.txt | tr -d ' ')"
           } >> "$GITHUB_OUTPUT"
 
+          echo "Tag: $NEW_TAG"
           echo "Selected:"; cat selected_paths.txt
-          echo "Unknown:"; cat unknown.txt
 
-      - name: Stop if nothing was selected
+      - name: Comment and close if nothing was selected
         if: ${{ steps.targets.outputs.count == '0' }}
-        run: echo "No services selected, exiting."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "No services were checked, nothing was bumped."
+          gh issue close "$ISSUE_NUMBER"
 
       - name: Check out deployment repo
         if: ${{ steps.targets.outputs.count != '0' }}
@@ -66,6 +72,8 @@ jobs:
       - name: Bump image tags for selected services only
         if: ${{ steps.targets.outputs.count != '0' }}
         id: bump
+        env:
+          NEW_TAG: ${{ steps.targets.outputs.new_tag }}
         run: |
           > bump_summary.txt
           while IFS=: read -r name path; do
@@ -96,12 +104,14 @@ jobs:
 
       - name: Open PR
         if: ${{ steps.targets.outputs.count != '0' }}
+        id: pr
         env:
           GH_TOKEN: ${{ secrets.DEPLOYMENT_REPO_TOKEN }}
+          NEW_TAG: ${{ steps.targets.outputs.new_tag }}
         run: |
           cd deploy_repo
           if git diff --quiet; then
-            echo "No files actually changed, nothing to open a PR for."
+            echo "no_changes=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           BRANCH="deploy-test/$(TZ=Asia/Kolkata date +%-d-%-m-%Y)-$NEW_TAG"
@@ -110,7 +120,20 @@ jobs:
           git checkout -B "$BRANCH"
           git commit -am "Deploy $NEW_TAG: $(grep -c ':' ../bump_summary.txt) service(s)"
           git push -f origin "$BRANCH"
-          gh pr create --base main --head "$BRANCH" \
+          URL=$(gh pr create --base main --head "$BRANCH" \
             --title "[TEST] Deploy $NEW_TAG" \
-            --body "$(printf 'Automated test bump for release `%s`.\n\n%s' "$NEW_TAG" "$(cat ../bump_summary.txt)")" \
-            || echo "PR already open for $BRANCH"
+            --body "$(printf 'Automated test bump for tag `%s` (requested in issue #%s).\n\n%s' "$NEW_TAG" "$ISSUE_NUMBER" "$(cat ../bump_summary.txt)")" \
+            2>/dev/null || gh pr view "$BRANCH" --json url -q .url)
+          echo "pr_url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Comment on the issue and close it
+        if: ${{ steps.targets.outputs.count != '0' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ steps.pr.outputs.no_changes }}" = "true" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "Selected services were already at the requested tag - nothing to bump."
+          else
+            gh issue comment "$ISSUE_NUMBER" --body "Opened deployment PR: ${{ steps.pr.outputs.pr_url }}"
+          fi
+          gh issue close "$ISSUE_NUMBER"

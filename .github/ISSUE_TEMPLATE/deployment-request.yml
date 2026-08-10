@@ -1,0 +1,60 @@
+# Keep this checkbox list in sync with .github/deploy-targets.json by hand -
+# GitHub issue form templates can't read from a file at render time.
+name: Deployment request
+description: Pick which services should be bumped to a given tag in the deployment repo.
+title: "Deploy: "
+labels: ["deployment-request"]
+body:
+  - type: input
+    id: tag
+    attributes:
+      label: Release tag
+      description: The tag that was already built and pushed to ECR (e.g. v8.7.0)
+      placeholder: v8.7.0
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: api_tier
+    attributes:
+      label: API / Web services
+      options:
+        - label: marrow-mobile-api
+        - label: ikigai-api
+        - label: marrow-web-api
+        - label: marrow-webhook-api
+        - label: idi-api
+        - label: sales-app
+        - label: stub
+        - label: unpublished-app
+
+  - type: checkboxes
+    id: celery
+    attributes:
+      label: Celery workers
+      options:
+        - label: celery-primary
+        - label: celery-beats
+        - label: celery-cmq
+        - label: celery-cmq-cr
+        - label: celery-creatorplus
+        - label: celery-datataskq
+        - label: celery-emailp0q
+        - label: celery-emailp1q
+        - label: celery-hyt
+        - label: celery-imgq-simck
+        - label: celery-jarvis
+        - label: celery-kycq
+        - label: celery-longtaskq
+        - label: celery-otp
+        - label: celery-rgq
+        - label: celery-subtitles
+        - label: celery-video
+        - label: celery-aspq-ns-ccemail-vault
+
+  - type: checkboxes
+    id: other
+    attributes:
+      label: Other
+      options:
+        - label: video-zip-job
