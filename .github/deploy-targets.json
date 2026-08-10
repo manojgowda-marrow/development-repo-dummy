@@ -1,15 +1,36 @@
 {
-  "_comment": "Test fixture mirroring rounds_api's .github/deploy-targets.json. Maps a fake service name -> path (relative to the ruleset-test deployment repo root).",
+  "_comment": "Test copy of rounds_api's .github/deploy-targets.json, pointed at the ruleset-test dummy deployment repo (which mirrors rounds_deployment's real file layout for this test). dailyrounds-api is intentionally excluded: it runs a separate `dailyrounds-api` ECR image, not the `rounds-api` image built by this repo.",
   "api_tier": {
-    "demo-api-one": "demo-api-one/deploy.yaml",
-    "demo-api-two": "demo-api-two/deploy.yaml",
-    "demo-api-three": "demo-api-three/deploy.yaml"
+    "marrow-mobile-api": "marrow-mobile-api/deploy.yaml",
+    "ikigai-api": "ikigai-api/deploy.yaml",
+    "marrow-web-api": "marrow-web-api/deploy.yaml",
+    "marrow-webhook-api": "marrow-webhook-api/deploy.yaml",
+    "idi-api": "idi-api/deploy.yaml",
+    "sales-app": "sales-app/deploy.yaml",
+    "stub": "stub/deploy.yaml",
+    "unpublished-app": "unpublished-app/deploy.yaml"
   },
   "celery": {
-    "demo-celery-one": "demo-celery-one/deploy.yaml",
-    "demo-celery-two": "demo-celery-two/deploy.yaml",
-    "demo-celery-three": "demo-celery-three/deploy.yaml",
-    "demo-celery-four": "demo-celery-four/deploy.yaml"
+    "celery-primary": "celery-primary/deploy.yaml",
+    "celery-beats": "celery-beats/deploy.yaml",
+    "celery-cmq": "celery-cmq/deploy.yaml",
+    "celery-cmq-cr": "celery-cmq-cr/deploy.yaml",
+    "celery-creatorplus": "celery-creatorplus/deploy.yaml",
+    "celery-datataskq": "celery-datataskq/deploy.yaml",
+    "celery-emailp0q": "celery-emailp0q/deploy.yaml",
+    "celery-emailp1q": "celery-emailp1q/deploy.yaml",
+    "celery-hyt": "celery-hyt/deploy.yaml",
+    "celery-imgq-simck": "celery-imgq-simck/deploy.yaml",
+    "celery-jarvis": "celery-jarvis/deploy.yaml",
+    "celery-kycq": "celery-kycq/deploy.yaml",
+    "celery-longtaskq": "celery-longtaskq/deploy.yaml",
+    "celery-otp": "celery-otp/deploy.yaml",
+    "celery-rgq": "celery-rgq/deploy.yaml",
+    "celery-subtitles": "celery-subtitles/deploy.yaml",
+    "celery-video": "celery-video/deploy.yaml",
+    "celery-aspq-ns-ccemail-vault": "celery-aspq-ns-ccemail-vault/deploy.yaml"
   },
-  "other": {}
+  "other": {
+    "video-zip-job": "video_zip_job_custom_pipeline/job.yaml"
+  }
 }

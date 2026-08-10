@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEW_TAG: ${{ github.event.release.tag_name }}
-      IMAGE: 961328178101.dkr.ecr.ap-south-1.amazonaws.com/rounds-api-test
+      IMAGE: 961328178101.dkr.ecr.ap-south-1.amazonaws.com/rounds-api
       DEPLOYMENT_REPO: manojgowda-marrow/ruleset-test
     steps:
       - name: Check out development-repo-dummy (for deploy-targets.json)
@@ -75,9 +75,9 @@ jobs:
               echo "$name: file $path not found, skipping" | tee -a bump_summary.txt
               continue
             fi
-            OLD_TAG=$(grep -oPm1 "(?<=rounds-api-test:)\S+" "$file" || true)
+            OLD_TAG=$(grep -oPm1 "(?<=rounds-api:)\S+" "$file" || true)
             if [ -z "$OLD_TAG" ]; then
-              echo "$name: no rounds-api-test tag found in $path, skipping" | tee -a bump_summary.txt
+              echo "$name: no rounds-api tag found in $path, skipping" | tee -a bump_summary.txt
               continue
             fi
             case "$OLD_TAG" in
