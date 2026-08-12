@@ -104,29 +104,55 @@ body:
       label: Rollback Info
       placeholder: "v1.23.4, or commit id"
 
-  - type: dropdown
+  - type: checkboxes
     id: api_deployment
     attributes:
       label: API Deployment
       options:
-        - "No"
-        - "Yes"
+        - label: API - Marrow Mobile
+        - label: API - Marrow Web
+        - label: API - Marrow Webhook
+        - label: API - Ikigai
+        - label: API - IDI
+        - label: API - Sales App
+        - label: API - Stub
+        - label: API - Unpublished App
 
-  - type: dropdown
+  - type: checkboxes
     id: celery_deployment
     attributes:
       label: Celery Deployment
       options:
-        - "No"
-        - "Yes"
+        - label: celery-primary
+        - label: celery-beats
+        - label: celery-cmq
+        - label: celery-cmq-cr
+        - label: celery-creatorplus
+        - label: celery-datataskq
+        - label: celery-emailp0q
+        - label: celery-emailp1q
+        - label: celery-hyt
+        - label: celery-imgq-simck
+        - label: celery-jarvis
+        - label: celery-kycq
+        - label: celery-longtaskq
+        - label: celery-otp
+        - label: celery-rgq
+        - label: celery-subtitles
+        - label: celery-video
+        - label: celery-aspq-ns-ccemail-vault
 
-  - type: dropdown
+  # Guessed from other ArgoCD web-tier apps we've seen (ikigai-web, marrow-web,
+  # dr-web, creator-plus) - confirm/correct this list against what you actually deploy.
+  - type: checkboxes
     id: web_deployment
     attributes:
       label: Web Deployment
       options:
-        - "No"
-        - "Yes"
+        - label: WEB - Ikigai
+        - label: WEB - Marrow Web
+        - label: WEB - DR Web
+        - label: WEB - Creator Plus
 
   - type: textarea
     id: pre_deployment

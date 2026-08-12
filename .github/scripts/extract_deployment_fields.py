@@ -31,6 +31,20 @@ ORDER = [
 ]
 
 
+CHECKBOX_LINE = re.compile(r"^- \[([xX ])\] (.+)$", re.M)
+
+
+def collapse_checkboxes(value):
+    """checkboxes fields render as a '- [x] label' list; keep only the
+    checked labels, joined like the sheet's existing free-text format
+    (e.g. "API - Marrow Web, API - Ikigai")."""
+    matches = CHECKBOX_LINE.findall(value)
+    if not matches:
+        return value
+    checked = [label.strip() for mark, label in matches if mark.strip().lower() == "x"]
+    return ", ".join(checked)
+
+
 def parse(body):
     parts = re.split(r"^### (.+)$", body, flags=re.M)
     fields = {}
@@ -39,7 +53,7 @@ def parse(body):
         value = content.strip()
         if value == "_No response_":
             value = ""
-        fields[heading.strip()] = value
+        fields[heading.strip()] = collapse_checkboxes(value)
     return fields
 
 
