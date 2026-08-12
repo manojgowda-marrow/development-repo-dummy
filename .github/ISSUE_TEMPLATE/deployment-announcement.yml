@@ -1,0 +1,141 @@
+# Replaces the manually-filled deployment-tracking spreadsheet. Submitting
+# this issue appends one row to the Google Sheet via
+# .github/workflows/deployment-log-sheet.yaml. Keep field labels in sync
+# with .github/scripts/extract_deployment_fields.py's `order` list - the
+# workflow maps by label text, not by field id.
+name: Deployment announcement
+description: Log a deployment for the team - replaces the deployment tracking sheet.
+title: "Deploy log: "
+body:
+  - type: input
+    id: email
+    attributes:
+      label: Email Address
+      placeholder: you@dailyrounds.org
+    validations:
+      required: true
+
+  - type: input
+    id: deployment_name
+    attributes:
+      label: Deployment Name / Release Name
+    validations:
+      required: true
+
+  - type: textarea
+    id: release_info_summary
+    attributes:
+      label: Release Info (summary)
+      description: What's in this release, in a sentence or two.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity/Impact
+      options:
+        - Low
+        - Medium
+        - High
+        - Critical
+    validations:
+      required: true
+
+  - type: input
+    id: deployment_date
+    attributes:
+      label: Deployment Date
+      placeholder: "YYYY-MM-DD"
+    validations:
+      required: true
+
+  - type: input
+    id: deployment_slot
+    attributes:
+      label: Deployment Slot
+      placeholder: e.g. 10:00-11:00 IST
+
+  - type: dropdown
+    id: deployment_type
+    attributes:
+      label: Deployment type
+      options:
+        - Regular
+        - Hotfix
+        - Emergency
+        - Rollback
+        - Other
+
+  - type: dropdown
+    id: library_install
+    attributes:
+      label: Library / Package installation required?
+      options:
+        - "No"
+        - "Yes"
+
+  - type: dropdown
+    id: config_changes
+    attributes:
+      label: Config / Setting Changes required?
+      options:
+        - "No"
+        - "Yes"
+
+  - type: dropdown
+    id: coordination
+    attributes:
+      label: Coordination required?
+      options:
+        - "No"
+        - "Yes"
+
+  - type: input
+    id: release_version
+    attributes:
+      label: Release Version / Commit ID
+      placeholder: "v1.23.5, or commit id for web"
+
+  - type: input
+    id: rollback_info
+    attributes:
+      label: Rollback Info
+      placeholder: "v1.23.4, or commit id"
+
+  - type: dropdown
+    id: api_deployment
+    attributes:
+      label: API Deployment
+      options:
+        - "No"
+        - "Yes"
+
+  - type: dropdown
+    id: celery_deployment
+    attributes:
+      label: Celery Deployment
+      options:
+        - "No"
+        - "Yes"
+
+  - type: dropdown
+    id: web_deployment
+    attributes:
+      label: Web Deployment
+      options:
+        - "No"
+        - "Yes"
+
+  - type: textarea
+    id: pre_deployment
+    attributes:
+      label: Pre-deployment steps/instructions
+
+  - type: textarea
+    id: post_deployment
+    attributes:
+      label: Post-Deployment steps/instructions
+
+  - type: textarea
+    id: other_comments
+    attributes:
+      label: Other comments (Deployment order etc.)

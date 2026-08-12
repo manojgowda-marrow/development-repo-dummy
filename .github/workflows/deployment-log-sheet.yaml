@@ -1,0 +1,56 @@
+name: Deployment Log Sheet
+
+# Replaces the manually-filled deployment tracking spreadsheet. Runs when a
+# "Deployment announcement" issue (.github/ISSUE_TEMPLATE/deployment-announcement.yml)
+# is opened, and appends one row to the target Google Sheet - Timestamp (issue
+# creation time) and the form fields, in that order. Writes via a Google Apps
+# Script Web App bound to the sheet (Extensions > Apps Script in the sheet
+# itself) instead of the Sheets API, so there's no GCP project/service
+# account to manage - just a webhook URL and a shared secret.
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  Append-Row:
+    # Gate on this template's unique heading so this doesn't fire on the
+    # separate "Deployment request" issue form (deployment-pr.yaml owns that one).
+    if: ${{ contains(github.event.issue.body, '### Deployment Name / Release Name') }}
+    runs-on: ubuntu-latest
+    env:
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+    steps:
+      - name: Check out development-repo-dummy (for the parser script)
+        uses: actions/checkout@v4
+
+      - name: Parse issue body into a row
+        id: row
+        run: |
+          jq -r '.issue.body' "$GITHUB_EVENT_PATH" > issue_body.md
+          FIELDS_JSON=$(python3 .github/scripts/extract_deployment_fields.py < issue_body.md)
+          TIMESTAMP=$(jq -r '.issue.created_at' "$GITHUB_EVENT_PATH")
+          ROW=$(jq -c --arg ts "$TIMESTAMP" '[$ts] + .' <<< "$FIELDS_JSON")
+          echo "row=$ROW" >> "$GITHUB_OUTPUT"
+
+      - name: Append row via the Apps Script webhook
+        env:
+          # Hardcoded for this test run - move back to secrets.DEPLOYMENT_LOG_WEBHOOK_URL
+          # before this leaves the dummy repo.
+          WEBHOOK_URL: "https://script.google.com/a/macros/dailyrounds.org/s/AKfycbw7jhNz1ywT-8oaHBaopMf3baPitoHDipkEWLliV85b7__BqTOcLUc1kTg9GwpdydXV/exec"
+          WEBHOOK_SECRET: ${{ secrets.DEPLOYMENT_LOG_WEBHOOK_SECRET }}
+        run: |
+          curl -sS -i -X POST \
+            -H "Content-Type: application/json" \
+            "$WEBHOOK_URL" \
+            -d "$(jq -c -n --arg secret "$WEBHOOK_SECRET" --argjson row '${{ steps.row.outputs.row }}' '{secret: $secret, row: $row}')"
+
+      - name: Confirm on the issue and close it
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "Logged to the deployment sheet."
+          gh issue close "$ISSUE_NUMBER"
