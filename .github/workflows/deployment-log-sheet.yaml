@@ -42,12 +42,12 @@ jobs:
 
       - name: Append row via the Apps Script webhook
         env:
-          # Hardcoded for this test run - move back to secrets.DEPLOYMENT_LOG_WEBHOOK_URL
-          # before this leaves the dummy repo.
+          # Hardcoded for this test run - move both back to secrets.DEPLOYMENT_LOG_WEBHOOK_URL
+          # / secrets.DEPLOYMENT_LOG_WEBHOOK_SECRET before this leaves the dummy repo.
           WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbwVlyaUdIxKC7yyH1h3L_n9R3_udmJT0K-xb4fS9iY7jyTpfHKd-trkjwxLm2IJ32gP/exec"
-          WEBHOOK_SECRET: ${{ secrets.DEPLOYMENT_LOG_WEBHOOK_SECRET }}
+          WEBHOOK_SECRET: "manojtoken@123"
         run: |
-          curl -sS -i -X POST \
+          curl -sS -i -L -X POST \
             -H "Content-Type: application/json" \
             "$WEBHOOK_URL" \
             -d "$(jq -c -n --arg secret "$WEBHOOK_SECRET" --argjson row '${{ steps.row.outputs.row }}' '{secret: $secret, row: $row}')"
