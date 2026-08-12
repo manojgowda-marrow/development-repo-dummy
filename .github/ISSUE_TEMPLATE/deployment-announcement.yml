@@ -44,15 +44,18 @@ body:
     id: deployment_date
     attributes:
       label: Deployment Date
+      description: Leave blank to use today's date.
       placeholder: "YYYY-MM-DD"
-    validations:
-      required: true
 
-  - type: input
+  - type: dropdown
     id: deployment_slot
     attributes:
       label: Deployment Slot
-      placeholder: e.g. 10:00-11:00 IST
+      options:
+        - "2 PM"
+        - ADHOC
+    validations:
+      required: true
 
   - type: dropdown
     id: deployment_type

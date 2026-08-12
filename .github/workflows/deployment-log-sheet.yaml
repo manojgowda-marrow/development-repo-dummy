@@ -33,6 +33,10 @@ jobs:
           jq -r '.issue.body' "$GITHUB_EVENT_PATH" > issue_body.md
           FIELDS_JSON=$(python3 .github/scripts/extract_deployment_fields.py < issue_body.md)
           TIMESTAMP=$(jq -r '.issue.created_at' "$GITHUB_EVENT_PATH")
+          TODAY="${TIMESTAMP%%T*}"
+          # Index 4 = Deployment Date (see ORDER in extract_deployment_fields.py) -
+          # left blank in the form means "use today".
+          FIELDS_JSON=$(jq -c --arg today "$TODAY" '.[4] = (if .[4] == "" then $today else .[4] end)' <<< "$FIELDS_JSON")
           ROW=$(jq -c --arg ts "$TIMESTAMP" '[$ts] + .' <<< "$FIELDS_JSON")
           echo "row=$ROW" >> "$GITHUB_OUTPUT"
 
@@ -40,7 +44,7 @@ jobs:
         env:
           # Hardcoded for this test run - move back to secrets.DEPLOYMENT_LOG_WEBHOOK_URL
           # before this leaves the dummy repo.
-          WEBHOOK_URL: "https://script.google.com/a/macros/dailyrounds.org/s/AKfycbw7jhNz1ywT-8oaHBaopMf3baPitoHDipkEWLliV85b7__BqTOcLUc1kTg9GwpdydXV/exec"
+          WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbwVlyaUdIxKC7yyH1h3L_n9R3_udmJT0K-xb4fS9iY7jyTpfHKd-trkjwxLm2IJ32gP/exec"
           WEBHOOK_SECRET: ${{ secrets.DEPLOYMENT_LOG_WEBHOOK_SECRET }}
         run: |
           curl -sS -i -X POST \
