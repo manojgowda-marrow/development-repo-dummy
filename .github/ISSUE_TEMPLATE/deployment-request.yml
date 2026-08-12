@@ -2,7 +2,7 @@
 # GitHub issue form templates can't read from a file at render time.
 name: Deployment request
 description: Pick which services should be bumped to a given tag in the deployment repo.
-title: "Deploy: "
+title: "Rounds API Deployment Request"
 labels: ["deployment-request"]
 body:
   - type: input

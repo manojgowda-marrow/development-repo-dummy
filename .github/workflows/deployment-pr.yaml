@@ -117,8 +117,8 @@ jobs:
             exit 0
           fi
           BRANCH="feat/$(TZ=Asia/Kolkata date +%-d-%-m-%Y)-api-celery"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "Manoj Gowda"
+          git config user.email "manoj.gowda@dailyrounds.org"
           git checkout -B "$BRANCH"
           git commit -am "Deploy $NEW_TAG: $(grep -c ':' ../bump_summary.txt) service(s)"
           git push -f origin "$BRANCH"
