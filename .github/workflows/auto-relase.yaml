@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [closed]
     branches:
-      - master
+      - main
 
 jobs:
   publish-release:
@@ -13,10 +13,10 @@ jobs:
       startsWith(github.event.pull_request.head.ref, 'release/v')
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repo (full history + tags)
+      - name: Check out repo
         uses: actions/checkout@v5
         with:
-          ref: master
+          ref: main
           fetch-depth: 0
           token: ${{ secrets.DEVOPS_PAT }}
 
@@ -44,16 +44,16 @@ jobs:
             --target "${{ github.event.pull_request.merge_commit_sha }}" \
             --generate-notes
 
-      - name: Sync develop with master (rebase + push)
+      - name: Sync develop with main (rebase + push)
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin develop master
+          git fetch origin develop main
           git checkout -B develop origin/develop
-          if ! git rebase origin/master; then
+          if ! git rebase origin/main; then
             git rebase --abort || true
-            echo "::error::Rebase conflict syncing develop onto master. Resolve manually." >&2
+            echo "::error::Rebase conflict syncing develop onto main. Resolve manually." >&2
             exit 1
           fi
           git push origin develop --force-with-lease
