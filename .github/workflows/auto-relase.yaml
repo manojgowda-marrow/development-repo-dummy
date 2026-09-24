@@ -1,0 +1,75 @@
+name: Release Publish (sync develop + tag + Slack)
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - master
+
+jobs:
+  publish-release:
+    if: >-
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo (full history + tags)
+        uses: actions/checkout@v5
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ secrets.DEVOPS_PAT }}
+
+      - name: Extract version from release branch name
+        id: version
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          VERSION="${HEAD_REF#release/}"
+          echo "Release version: ${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag and publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.DEVOPS_PAT }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          if gh release view "${VERSION}" >/dev/null 2>&1; then
+            echo "::warning::Release ${VERSION} already exists; skipping tag and release creation." >&2
+            exit 0
+          fi
+          gh release create "${VERSION}" \
+            --target "${{ github.event.pull_request.merge_commit_sha }}" \
+            --generate-notes
+
+      - name: Sync develop with master (rebase + push)
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin develop master
+          git checkout -B develop origin/develop
+          if ! git rebase origin/master; then
+            git rebase --abort || true
+            echo "::error::Rebase conflict syncing develop onto master. Resolve manually." >&2
+            exit 1
+          fi
+          git push origin develop --force-with-lease
+
+      - name: Notifying on slack on failure
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_CHANNEL: ${{secrets.SLACK_CHANNEL}}
+        if: ${{ failure() }}
+        run: |
+          curl -X POST -H 'Content-type: application/json'  --data '{"text": "Release publish status : failed \n Release Tag : ${{ steps.version.outputs.version }}","channel":"${{secrets.slack_channel}}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notifying on slack on success
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_CHANNEL: ${{secrets.SLACK_CHANNEL}}
+        if: ${{ !failure() }}
+        run: |
+          curl -X POST -H 'Content-type: application/json'  --data '{"text": "Release publish status : ${{ job.status }} \n Release Tag : ${{ steps.version.outputs.version }}","channel":"${{secrets.slack_channel}}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
