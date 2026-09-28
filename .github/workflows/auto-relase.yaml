@@ -50,7 +50,7 @@ jobs:
           SLACK_CHANNEL: ${{secrets.SLACK_CHANNEL}}
         if: ${{ failure() }}
         run: |
-          curl -X POST -H 'Content-type: application/json'  --data '{"text": "Release publish status : failed \n Release Tag : ${{ steps.version.outputs.version }}","channel":"${{secrets.slack_channel}}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
+          curl -X POST -H 'Content-type: application/json'  --data '{"text": ":x: Release publish status : failed \n Release Tag : ${{ steps.version.outputs.version }}","channel":"${{secrets.slack_channel}}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
 
       - name: Notifying on slack on success
         env:
@@ -58,4 +58,4 @@ jobs:
           SLACK_CHANNEL: ${{secrets.SLACK_CHANNEL}}
         if: ${{ !failure() }}
         run: |
-          curl -X POST -H 'Content-type: application/json'  --data '{"text": "Release publish status : ${{ job.status }} \n Release Tag : ${{ steps.version.outputs.version }}","channel":"${{secrets.slack_channel}}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
+          curl -X POST -H 'Content-type: application/json'  --data '{"text": ":white_check_mark: Release publish status : ${{ job.status }} \n Release Tag : ${{ steps.version.outputs.version }}","channel":"${{secrets.slack_channel}}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
