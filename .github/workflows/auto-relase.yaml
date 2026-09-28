@@ -12,13 +12,13 @@ jobs:
       github.event.pull_request.merged == true &&
       startsWith(github.event.pull_request.head.ref, 'release/v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Check out repo
         uses: actions/checkout@v5
         with:
           ref: main
-          fetch-depth: 0
-          token: ${{ secrets.DEVOPS_PAT }}
 
       - name: Extract version from release branch name
         id: version
@@ -32,7 +32,7 @@ jobs:
 
       - name: Create tag and publish GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.DEVOPS_PAT }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
@@ -43,20 +43,6 @@ jobs:
           gh release create "${VERSION}" \
             --target "${{ github.event.pull_request.merge_commit_sha }}" \
             --generate-notes
-
-      - name: Sync develop with main (rebase + push)
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin develop main
-          git checkout -B develop origin/develop
-          if ! git rebase origin/main; then
-            git rebase --abort || true
-            echo "::error::Rebase conflict syncing develop onto main. Resolve manually." >&2
-            exit 1
-          fi
-          git push origin develop --force-with-lease
 
       - name: Notifying on slack on failure
         env:
