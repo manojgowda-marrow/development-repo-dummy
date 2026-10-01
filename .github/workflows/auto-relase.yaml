@@ -54,7 +54,6 @@ jobs:
             ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} Release publish status : ${{ job.status }}
             Release Tag : ${{ job.status == 'success' && format('<{0}/{1}/releases/tag/{2}|{2}>', github.server_url, github.repository, steps.version.outputs.version) || steps.version.outputs.version }}
             Branch : ${{ github.event.pull_request.base.ref }}
-            Commit : ${{ github.event.pull_request.merge_commit_sha }}
             Commit Message : ${{ steps.version.outputs.commit_msg }}
         run: |
           jq -n --arg text "$TEXT" --arg channel "$SLACK_CHANNEL" '{text: $text, channel: $channel}' \
