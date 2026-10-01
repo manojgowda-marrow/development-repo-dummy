@@ -18,9 +18,9 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
 
-      - name: Extract version from release branch name
+      - name: Release info
         id: version
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
@@ -29,6 +29,7 @@ jobs:
           VERSION="${HEAD_REF#release/}"
           echo "Release version: ${VERSION}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "commit_msg=$(git log -1 --format=%s)" >> "$GITHUB_OUTPUT"
 
       - name: Create tag and publish GitHub Release
         env:
@@ -44,18 +45,17 @@ jobs:
             --target "${{ github.event.pull_request.merge_commit_sha }}" \
             --generate-notes
 
-      - name: Notifying on slack on failure
+      - name: Notify Slack
+        if: ${{ always() }}
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_CHANNEL: ${{secrets.SLACK_CHANNEL}}
-        if: ${{ failure() }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          TEXT: |-
+            ${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} Release publish status : ${{ job.status }}
+            Release Tag : ${{ job.status == 'success' && format('<{0}/{1}/releases/tag/{2}|{2}>', github.server_url, github.repository, steps.version.outputs.version) || steps.version.outputs.version }}
+            Branch : ${{ github.event.pull_request.base.ref }}
+            Commit : ${{ github.event.pull_request.merge_commit_sha }}
+            Commit Message : ${{ steps.version.outputs.commit_msg }}
         run: |
-          curl -X POST -H 'Content-type: application/json'  --data '{"text": ":x: Release publish status : failed \n Release Tag : ${{ steps.version.outputs.version }}","channel":"${{secrets.slack_channel}}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
-
-      - name: Notifying on slack on success
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_CHANNEL: ${{secrets.SLACK_CHANNEL}}
-        if: ${{ !failure() }}
-        run: |
-          curl -X POST -H 'Content-type: application/json'  --data '{"text": ":white_check_mark: Release publish status : ${{ job.status }} \n Release Tag : ${{ steps.version.outputs.version }}","channel":"${{secrets.slack_channel}}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
+          jq -n --arg text "$TEXT" --arg channel "$SLACK_CHANNEL" '{text: $text, channel: $channel}' \
+            | curl -sS -X POST -H 'Content-type: application/json' --data @- "$SLACK_WEBHOOK"
