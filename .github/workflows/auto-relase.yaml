@@ -20,7 +20,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
-          token: ${{ secrets.DEVOPS_PAT }}
+          # Deploy key (write) is on the develop ruleset bypass list, so the force-push is allowed.
+          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
       - name: Release info
         id: version
@@ -36,16 +37,18 @@ jobs:
       - name: Create tag and publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
           if gh release view "${VERSION}" >/dev/null 2>&1; then
             echo "::warning::Release ${VERSION} already exists; skipping tag and release creation." >&2
             exit 0
           fi
-          gh release create "${VERSION}" \
-            --target "${{ github.event.pull_request.merge_commit_sha }}" \
-            --generate-notes
+          # Push tag with deploy key so the tag-triggered workflow runs.
+          git tag "${VERSION}" "${MERGE_SHA}"
+          git push origin "${VERSION}"
+          gh release create "${VERSION}" --verify-tag --generate-notes
 
       # Rebase develop onto main; fails on conflict.
       - name: Sync develop with main
