@@ -47,15 +47,15 @@ jobs:
             --target "${{ github.event.pull_request.merge_commit_sha }}" \
             --generate-notes
 
-      # Rebase develop onto main; fails on conflict.
+      # Merge main into develop (fast-forward when possible); fails on conflict. No force push.
       - name: Sync develop with main
         id: sync
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -B develop origin/develop
-          git rebase origin/main
-          git push origin develop --force-with-lease
+          git merge --no-edit origin/main
+          git push origin develop
 
       - name: Notify Slack
         if: ${{ always() }}
