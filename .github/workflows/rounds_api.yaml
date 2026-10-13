@@ -4,11 +4,10 @@ name: Push to ECR
 # No real AWS/ECR access here -- the build and push steps only echo,
 # so we can test that the release workflow actually triggers this one.
 on:
-  release:
-    types: [published]
-    branches:
-      - main
-      - "release/**"
+  # Tag push, not release event: releases made with GITHUB_TOKEN don't trigger workflows.
+  push:
+    tags:
+      - 'v*'
 permissions:
   contents: read
 jobs:
