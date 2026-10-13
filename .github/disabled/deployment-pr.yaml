@@ -1,0 +1,141 @@
+name: Deployment PR
+
+# Test copy of the rounds_api deployment-PR flow, pointed at the ruleset-test
+# dummy deployment repo instead of rounds_deployment. Runs when a "Deployment
+# request" issue (.github/ISSUE_TEMPLATE/deployment-request.yml) is opened.
+# The dev picks a tag and ticks real checkboxes for the services to bump -
+# no markdown editing. Opens ONE PR in ruleset-test with only those services
+# changed, then comments back on the issue and closes it.
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  Raise-Deployment-PR:
+    # Issue-form "labels:" only applies a label that already exists in the repo,
+    # so gating on labels is fragile. Gate on the template's unique heading instead.
+    if: ${{ contains(github.event.issue.body, '### Release tag') }}
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: 961328178101.dkr.ecr.ap-south-1.amazonaws.com/rounds-api
+      DEPLOYMENT_REPO: manojgowda-marrow/ruleset-test
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+    steps:
+      - name: Check out development-repo-dummy (for deploy-targets.json)
+        uses: actions/checkout@v4
+
+      - name: Extract tag and checked services from the issue body
+        id: targets
+        run: |
+          jq -r '.issue.body' "$GITHUB_EVENT_PATH" > issue_body.md
+
+          NEW_TAG=$(awk '/^### Release tag$/{f=1; next} f && NF{print; exit}' issue_body.md)
+          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+
+          grep -oE '^- \[[xX]\] [A-Za-z0-9._-]+' issue_body.md | sed -E 's/^- \[[xX]\] //' > checked.txt || true
+
+          jq -r '.api_tier + .celery + .other' .github/deploy-targets.json > flat-targets.json
+
+          > selected_paths.txt
+          while IFS= read -r name; do
+            [ -z "$name" ] && continue
+            path=$(jq -r --arg n "$name" '.[$n] // empty' flat-targets.json)
+            [ -n "$path" ] && echo "$name:$path" >> selected_paths.txt
+          done < checked.txt
+
+          {
+            echo "count=$(wc -l < selected_paths.txt | tr -d ' ')"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Tag: $NEW_TAG"
+          echo "Selected:"; cat selected_paths.txt
+
+      - name: Comment and close if nothing was selected
+        if: ${{ steps.targets.outputs.count == '0' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "No services were checked, nothing was bumped."
+          gh issue close "$ISSUE_NUMBER"
+
+      - name: Check out deployment repo
+        if: ${{ steps.targets.outputs.count != '0' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DEPLOYMENT_REPO }}
+          token: ${{ secrets.DEPLOYMENT_REPO_TOKEN }}
+          ref: main
+          path: deploy_repo
+
+      - name: Bump image tags for selected services only
+        if: ${{ steps.targets.outputs.count != '0' }}
+        id: bump
+        env:
+          NEW_TAG: ${{ steps.targets.outputs.new_tag }}
+        run: |
+          > bump_summary.txt
+          while IFS=: read -r name path; do
+            [ -z "$name" ] && continue
+            file="deploy_repo/$path"
+            if [ ! -f "$file" ]; then
+              echo "$name: file $path not found, skipping" | tee -a bump_summary.txt
+              continue
+            fi
+            OLD_TAG=$(grep -oPm1 "(?<=rounds-api:)\S+" "$file" || true)
+            if [ -z "$OLD_TAG" ]; then
+              echo "$name: no rounds-api tag found in $path, skipping" | tee -a bump_summary.txt
+              continue
+            fi
+            case "$OLD_TAG" in
+              celery-*) NEW=celery-$NEW_TAG ;;
+              *) NEW=$NEW_TAG ;;
+            esac
+            if [ "$OLD_TAG" = "$NEW" ]; then
+              echo "$name: already at $NEW, skipping" | tee -a bump_summary.txt
+              continue
+            fi
+            sed -i "s|$IMAGE:$OLD_TAG|$IMAGE:$NEW|" "$file"
+            echo "$name: $OLD_TAG -> $NEW" | tee -a bump_summary.txt
+          done < selected_paths.txt
+
+          cd deploy_repo && git diff --stat
+
+      - name: Open PR
+        if: ${{ steps.targets.outputs.count != '0' }}
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.DEPLOYMENT_REPO_TOKEN }}
+          NEW_TAG: ${{ steps.targets.outputs.new_tag }}
+        run: |
+          cd deploy_repo
+          if git diff --quiet; then
+            echo "no_changes=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          BRANCH="feat/$(TZ=Asia/Kolkata date +%-d-%-m-%Y)-api-celery"
+          git config user.name "Manoj Gowda"
+          git config user.email "manoj.gowda@dailyrounds.org"
+          git checkout -B "$BRANCH"
+          git commit -am "Deploy $NEW_TAG: $(grep -c ':' ../bump_summary.txt) service(s)"
+          git push -f origin "$BRANCH"
+          URL=$(gh pr create --base main --head "$BRANCH" \
+            --title "[TEST] Deploy $NEW_TAG" \
+            --body "$(printf 'Automated test bump for tag `%s` (requested in issue #%s).\n\n%s' "$NEW_TAG" "$ISSUE_NUMBER" "$(cat ../bump_summary.txt)")" \
+            2>/dev/null || gh pr view "$BRANCH" --json url -q .url)
+          echo "pr_url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Comment on the issue and close it
+        if: ${{ steps.targets.outputs.count != '0' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ steps.pr.outputs.no_changes }}" = "true" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "Selected services were already at the requested tag - nothing to bump."
+          else
+            gh issue comment "$ISSUE_NUMBER" --body "Opened deployment PR: ${{ steps.pr.outputs.pr_url }}"
+          fi
+          gh issue close "$ISSUE_NUMBER"
