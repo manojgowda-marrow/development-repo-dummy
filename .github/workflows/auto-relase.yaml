@@ -1,4 +1,4 @@
-name: Release Publish (sync develop + tag + Slack)
+name: Auto Release Tag Creation
 
 on:
   pull_request:
@@ -45,9 +45,19 @@ jobs:
             echo "::warning::Release ${VERSION} already exists; skipping tag and release creation." >&2
             exit 0
           fi
-          # Push tag with deploy key so the tag-triggered workflow runs.
-          git tag "${VERSION}" "${MERGE_SHA}"
-          git push origin "${VERSION}"
+          # Push tag with deploy key so rounds_api.yaml (ECR build) runs.
+          # Skip if the tag is already there (job re-run after a failed release).
+          if git rev-parse --verify --quiet "refs/tags/${VERSION}" >/dev/null; then
+            TAG_SHA="$(git rev-list -n 1 "${VERSION}")"
+            if [ "${TAG_SHA}" != "${MERGE_SHA}" ]; then
+              echo "::error::Tag ${VERSION} already points to ${TAG_SHA}, expected ${MERGE_SHA}." >&2
+              exit 1
+            fi
+          else
+            git tag "${VERSION}" "${MERGE_SHA}"
+            git push origin "${VERSION}"
+          fi
+
           gh release create "${VERSION}" --verify-tag --generate-notes
 
       # Rebase develop onto main; fails on conflict.

@@ -1,0 +1,40 @@
+name: Push to ECR
+
+# Mirrors rounds_api's real rounds_api.yaml: same name, same trigger.
+# No real AWS/ECR access here -- the build and push steps only echo,
+# so we can test that the release workflow actually triggers this one.
+on:
+  release:
+    types: [published]
+    branches:
+      - main
+      - "release/**"
+permissions:
+  contents: read
+jobs:
+  Build-And-Deploy:
+    continue-on-error: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+      - name: Set RELEASE_VERSION env
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Fake build and push api image
+        run: echo "Pretending to build+push rounds-api:${{ env.RELEASE_VERSION }}"
+      - name: Fake build and push celery image
+        run: echo "Pretending to build+push rounds-api:celery-${{ env.RELEASE_VERSION }}"
+      - name: Notifying on slack on failure
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_CHANNEL: ${{secrets.SLACK_CHANNEL_NO}}
+        if: ${{ failure() }}
+        run: |
+          curl -X POST -H 'Content-type: application/json'  --data '{"text": "Docker build status : failed \n Release Tag : ${{ env.RELEASE_VERSION }}","channel":"${{secrets.slack_channel}}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
+      - name: Notifying on slack on success
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_CHANNEL: ${{secrets.SLACK_CHANNEL}}
+        if: ${{ !failure() }}
+        run: |
+          curl -X POST -H 'Content-type: application/json'  --data '{"text": "Docker build status : ${{ job.status }} \n Docker Image API : rounds-api:${{ env.RELEASE_VERSION }} \n Docker Image Celery : rounds-api:celery-${{ env.RELEASE_VERSION }}","channel":"${{secrets.slack_channel}}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
